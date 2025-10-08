@@ -1,32 +1,47 @@
+
 import streamlit as st
+import requests
 import pandas as pd
 import time
-import random
 
-st.set_page_config(page_title="Luno Trading Dashboard", layout="wide")
+# --- Dashboard title ---
+st.set_page_config(page_title="KeltonBot Dashboard")
+st.title("💹 KeltonBot - Luno Trading Dashboard")
 
-st.title("💹 Kelton Luno Trading Dashboard")
-
-# Sidebar controls
+# --- Sidebar controls ---
 st.sidebar.header("Controls")
 start = st.sidebar.button("▶️ Start Bot")
 stop = st.sidebar.button("⏹️ Stop Bot")
 
-# Placeholder for chart data
+# --- Placeholder for chart and status ---
 chart_placeholder = st.empty()
+status_placeholder = st.empty()
 
-# Create initial DataFrame
-data = pd.DataFrame({"Price": [random.uniform(1000, 1200)]})
+# --- Data setup ---
+data = pd.DataFrame(columns=["Time", "Price"])
+api_url = "https://api.luno.com/api/1/ticker?pair=XBTZAR"
 
+# --- Logic for bot ---
 if start:
-    st.sidebar.success("Bot started...")
-    for i in range(50):
-        new_row = {"Price": data["Price"].iloc[-1] + random.uniform(-10, 10)}
-        data = pd.concat([data, pd.DataFrame([new_row])], ignore_index=True)
-        chart_placeholder.line_chart(data)
-        time.sleep(0.2)
+    st.sidebar.success("Bot started! Fetching live BTC/ZAR prices...")
+    while True:
+        try:
+            response = requests.get(api_url).json()
+            price = float(response["last_trade"])
+            timestamp = time.strftime("%H:%M:%S")
+
+            new_row = pd.DataFrame({"Time": [timestamp], "Price": [price]})
+            data = pd.concat([data, new_row]).tail(30)
+
+            chart_placeholder.line_chart(data.set_index("Time"))
+            status_placeholder.info(f"💰 BTC/ZAR: R{price:,.2f}")
+
+            time.sleep(5)
+        except Exception as e:
+            status_placeholder.error(f"Error: {e}")
+            break
 
 elif stop:
     st.sidebar.warning("Bot stopped.")
 else:
-    chart_placeholder.line_chart(data)
+    st.sidebar.info("Press ▶️ Start to begin fetching data.")
